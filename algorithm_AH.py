@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 @dataclass
 class Location:
     postcode: str
-    latitude: float
-    longitude: float
+    lat: float
+    lng: float
     district: str = ""
     ward: str = ""
 
@@ -42,8 +42,8 @@ def haversine(a: Location, b: Location) -> float:
     """
     earth_radius = 6371.0  # Earth's mean radius in km
 
-    latitude_1, longitude_1 = math.radians(a.latitude), math.radians(a.longitude)
-    latitude_2, longitude_2 = math.radians(b.latitude), math.radians(b.longitude)
+    latitude_1, longitude_1 = math.radians(a.lat), math.radians(a.lng)
+    latitude_2, longitude_2 = math.radians(b.lat), math.radians(b.lng)
 
     latitude_dist = latitude_2 - latitude_1
     longitude_dist = longitude_2 - longitude_1

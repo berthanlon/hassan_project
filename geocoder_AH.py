@@ -1,6 +1,4 @@
 """
-geocoder.py
------------
 Handles UK postcode geocoding using the free postcodes.io API.
 """
 
@@ -15,12 +13,12 @@ def is_valid_format(postcode):
     and roughly the right length. The API will reject anything invalid.
     Accepts with or without spaces, upper or lowercase.
     """
-    cleaned = postcode.strip().replace(" ", "")
+    cleaned_postcode = postcode.strip().replace(" ", "")
     # UK postcodes without space are 5-7 characters
-    if len(cleaned) < 5 or len(cleaned) > 7:
+    if len(cleaned_postcode) < 5 or len(cleaned_postcode) > 7:
         return False
     # Must start with at least one letter
-    if not cleaned[0].isalpha():
+    if not cleaned_postcode[0].isalpha():
         return False
     return True
 
@@ -31,9 +29,9 @@ def geocode(postcode):
     Returns a dict with postcode, lat, lng, district, ward.
     Returns None if not found or on network error.
     """
-    clean = postcode.strip().replace(" ", "").upper()
+    clean_postcode = postcode.strip().replace(" ", "").upper()
     try:
-        url = API_BASE + "/" + clean
+        url = API_BASE + "/" + clean_postcode
         response = requests.get(url, timeout=8)
         data = response.json()
 
@@ -59,11 +57,11 @@ def bulk_geocode(postcodes):
     Geocode multiple postcodes in one API call (up to 100).
     Returns a list of result dicts (None for each not found).
     """
-    clean = [p.strip().replace(" ", "").upper() for p in postcodes]
+    clean_postcode = [p.strip().replace(" ", "").upper() for p in postcodes]
     try:
         response = requests.post(
             API_BASE,
-            json={"postcodes": clean},
+            json={"postcodes": clean_postcode},
             timeout=10
         )
         data = response.json()

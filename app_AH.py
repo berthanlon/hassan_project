@@ -7,10 +7,10 @@ from tkinter import ttk, filedialog, messagebox
 import threading
 from datetime import datetime, timedelta
 
-import geocoder
+import geocoder_AH
 import algorithm_AH
-import map_canvas
-import report as report_module
+import map_canvas_AH
+import report_AH as report_module
 
 
 # Colours / fonts 
@@ -292,7 +292,7 @@ class InputFrame(tk.Frame):
         self.depot_entry.configure(state="disabled")
 
         def lookup():
-            result = geocoder.geocode(pc)
+            result = geocoder_AH.geocode(pc)
             self.after(0, lambda: self._on_depot_result(result))
 
         threading.Thread(target=lookup, daemon=True).start()
@@ -305,8 +305,8 @@ class InputFrame(tk.Frame):
             return
         self.app.depot = algorithm_AH.Location(
             postcode=result["postcode"],
-            latitude=result["lat"],
-            longitude=result["lng"],
+            lat=result["lat"],
+            lng=result["lng"],
             district=result["district"],
             ward=result["ward"]
         )
@@ -338,7 +338,7 @@ class InputFrame(tk.Frame):
         self.stop_entry.configure(state="disabled")
 
         def lookup():
-            result = geocoder.geocode(pc)
+            result = geocoder_AH.geocode(pc)
             self.after(0, lambda: self._on_stop_result(result))
 
         threading.Thread(target=lookup, daemon=True).start()
@@ -351,8 +351,8 @@ class InputFrame(tk.Frame):
             return
         loc = algorithm_AH.Location(
             postcode=result["postcode"],
-            latitude=result["lat"],
-            longitude=result["lng"],
+            lat=result["lat"],
+            lng=result["lng"],
             district=result["district"],
             ward=result["ward"]
         )
@@ -405,8 +405,8 @@ class InputFrame(tk.Frame):
         self._update_go_btn()
 
         def load():
-            depot_data = geocoder.geocode("SW1A 1AA")
-            stops_data = geocoder.bulk_geocode(
+            depot_data = geocoder_AH.geocode("SW1A 1AA")
+            stops_data = geocoder_AH.bulk_geocode(
                 ["EC1A 1BB", "W1A 1AA", "SE1 7PB", "N1 9GU", "E1 6RF", "WC2N 5DU"])
             self.after(0, lambda: self._on_samples_loaded(depot_data, stops_data))
 
@@ -570,12 +570,12 @@ class DeliveryFrame(tk.Frame):
         map_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         make_label(map_card, "ROUTE MAP", font=("Courier", 8),
                    fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=8, pady=(6, 2))
-        map_c = tk.Canvas(map_card, bg=map_canvas.COLOUR_BG,
+        map_c = tk.Canvas(map_card, bg=map_canvas_AH.COLOUR_BG,
                           highlightthickness=0, width=300, height=300)
         map_c.pack(fill="both", expand=True, padx=4, pady=(0, 4))
         # Draw after layout settles
         map_c.update_idletasks()
-        map_canvas.draw_route(map_c, self.app.depot, stops, done,
+        map_canvas_AH.draw_route(map_c, self.app.depot, stops, done,
                                current if current < total else None)
 
         # Stop list (right column)
@@ -839,7 +839,7 @@ class ReportFrame(tk.Frame):
         make_label(map_frame, "OPTIMISED ROUTE", font=("Courier", 8),
                    fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=10, pady=(8, 4))
         self.report_map = tk.Canvas(
-            map_frame, bg=map_canvas.COLOUR_BG,
+            map_frame, bg=map_canvas_AH.COLOUR_BG,
             highlightthickness=0, width=300, height=300)
         self.report_map.pack(fill="both", expand=True, padx=6, pady=(0, 6))
         self.after(120, self._draw_report_map)
@@ -915,7 +915,7 @@ class ReportFrame(tk.Frame):
 
     def _draw_report_map(self):
         done = set(r.stop_index for r in self.app.delivery_records)
-        map_canvas.draw_route(
+        map_canvas_AH.draw_route(
             self.report_map, self.app.depot,
             self.app.opt_result.route, done, current_index=None)
 
