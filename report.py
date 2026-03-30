@@ -30,6 +30,7 @@ class DeliveryReport:
     records: list[StopRecord]
     start_time: datetime
     opt_result: OptimisationResult
+    driver_name: str = ""
 
     # Computed properties
 
@@ -69,7 +70,8 @@ def generate_text_report(report: DeliveryReport) -> str:
     lines = []
 
     lines.append(seperator)
-    lines.append("  ROUTEMAX — DELIVERY REPORT")
+    lines.append("  ROUTEMAX - DELIVERY REPORT")
+    lines.append(f"  Driver:    {report.driver_name if report.driver_name else 'Not specified'}")
     lines.append(f"  Generated: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     lines.append(seperator)
     lines.append("")
@@ -85,27 +87,15 @@ def generate_text_report(report: DeliveryReport) -> str:
     lines.append(f"  Avg time per stop:  {report.avg_minutes_per_stop:.1f} minutes")
     lines.append("")
 
-    # Algorithm stats
-    lines.append("ALGORITHM PERFORMANCE (2-OPT)")
-    lines.append(thin)
-    lines.append(f"  Initial route (nearest-neighbour): "
-                 f"{report.opt_result.initial_distance_km:.2f} km")
-    lines.append(f"  Optimised route (2-opt):           "
-                 f"{report.opt_result.total_distance_km:.2f} km")
-    saved = report.opt_result.initial_distance_km - report.opt_result.total_distance_km
-    percentage = saved / report.opt_result.initial_distance_km * 100 if report.opt_result.initial_distance_km > 0 else 0
-    lines.append(f"  Distance saved:                    {saved:.2f} km ({percentage:.1f}%)")
-    lines.append(f"  2-opt iterations:                  {report.opt_result.iterations}")
-    lines.append("")
 
     # Highlights
     lines.append("HIGHLIGHTS")
     lines.append(thin)
     fastest = report.fastest_stop
     slowest = report.slowest_stop
-    lines.append(f"  Fastest stop:  Stop {fastest.stop_index + 1} — {fastest.location.postcode} "
+    lines.append(f"  Fastest stop:  Stop {fastest.stop_index + 1} - {fastest.location.postcode} "
                  f"({fastest.travel_minutes:.1f} min, {fastest.distance_from_prev_km:.2f} km)")
-    lines.append(f"  Slowest stop:  Stop {slowest.stop_index + 1} — {slowest.location.postcode} "
+    lines.append(f"  Slowest stop:  Stop {slowest.stop_index + 1} - {slowest.location.postcode} "
                  f"({slowest.travel_minutes:.1f} min, {slowest.distance_from_prev_km:.2f} km)")
     lines.append("")
 
@@ -128,30 +118,6 @@ def generate_text_report(report: DeliveryReport) -> str:
 
     lines.append("")
 
-    # 2-opt improvement log
-    lines.append("2-OPT IMPROVEMENT LOG")
-    lines.append(thin)
-    for entry in report.opt_result.improvement_log:
-        lines.append(f"  {entry}")
-    lines.append("")
-
-    # Algorithm explanation
-    lines.append("ALGORITHM NOTES")
-    lines.append(thin)
-    lines.append("  The Travelling Salesman Problem (TSP) asks: given a set of")
-    lines.append("  cities, what is the shortest route visiting each exactly once?")
-    lines.append("  This is an NP-hard problem — no polynomial-time exact algorithm")
-    lines.append("  is known for large inputs.")
-    lines.append("")
-    lines.append("  This program uses a two-phase approach:")
-    lines.append("  1. Nearest-Neighbour Heuristic — O(n²) greedy seed route.")
-    lines.append("  2. 2-Opt Local Search — iteratively reverses sub-routes")
-    lines.append("     until no improving swap exists (local optimum).")
-    lines.append("")
-    lines.append("  Distances are computed using the Haversine formula, which")
-    lines.append("  accounts for Earth's curvature to give accurate km distances")
-    lines.append("  from latitude/longitude coordinate pairs.")
-    lines.append("")
     lines.append(seperator)
 
     return "\n".join(lines)
@@ -167,5 +133,46 @@ def save_report(report: DeliveryReport, filepath: str) -> str:
     text = generate_text_report(report)
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(text)
+
+    return filepath
+
+
+def save_csv(report, filepath):
+    """
+    Save the stop-by-stop data as a CSV file. Returns the filepath used.
+    """
+    import csv
+
+    if not filepath.endswith(".csv"):
+        filepath += ".csv"
+
+    with open(filepath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+
+        # Header metadata
+        writer.writerow(["RouteMax Delivery Report"])
+        writer.writerow(["Driver", report.driver_name if report.driver_name else "Not specified"])
+        writer.writerow(["Generated", datetime.now().strftime("%d/%m/%Y %H:%M")])
+        writer.writerow(["Depot", report.depot.postcode, report.depot.district])
+        writer.writerow(["Start Time", report.start_time.strftime("%H:%M")])
+        writer.writerow(["Total Distance (km)", round(report.total_km, 2)])
+        writer.writerow(["Total Time (min)", round(report.total_minutes, 0)])
+        writer.writerow(["Stops Completed", len(report.records)])
+        writer.writerow(["NN Seed Distance (km)", round(report.opt_result.initial_distance_km, 2)])
+        writer.writerow(["2-opt Distance (km)", round(report.opt_result.total_distance_km, 2)])
+        writer.writerow(["2-opt Iterations", report.opt_result.iterations])
+        writer.writerow([])
+
+        # Stop-by-stop data
+        writer.writerow(["Stop #", "Postcode", "Area", "Distance from Prev (km)", "Travel Time (min)", "Arrived At"])
+        for rec in report.records:
+            writer.writerow([
+                rec.stop_index + 1,
+                rec.location.postcode,
+                rec.location.district or "",
+                round(rec.distance_from_prev_km, 2),
+                round(rec.travel_minutes, 1),
+                rec.arrived_at.strftime("%H:%M"),
+            ])
 
     return filepath

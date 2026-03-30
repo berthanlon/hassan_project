@@ -71,7 +71,7 @@ class RouteMaxApp:
 
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("RouteMax - 2-Opt Delivery Optimiser")
+        self.root.title("RouteMaster")
         self.root.geometry("960x700")
         self.root.configure(bg=BG)
         self.root.minsize(800, 600)
@@ -83,6 +83,7 @@ class RouteMaxApp:
         self.delivery_records = []
         self.start_time = None
         self.current_stop_idx = 0
+        self.driver_name = ""
 
         self._build_header()
 
@@ -108,8 +109,6 @@ class RouteMaxApp:
                  bg=SURFACE, fg=TEXT).pack(side="left")
         tk.Label(inner, text="Max", font=("Helvetica", 16, "bold"),
                  bg=SURFACE, fg=ACCENT).pack(side="left")
-        tk.Label(inner, text="  2-OPT TSP SOLVER",
-                 font=("Courier", 8), bg=SURFACE, fg=MUTED).pack(side="left", padx=8)
 
     def show_frame(self, name):
         frame = self.frames[name]
@@ -223,6 +222,18 @@ class InputFrame(tk.Frame):
         make_label(time_card, "Format: HH:MM  e.g. 09:00",
                    FONT_SMALL, MUTED, bg=SURFACE).pack(anchor="w", padx=14, pady=(0, 10))
 
+        # Driver name card
+        name_card = make_card(left)
+        name_card.pack(fill="x", pady=(10, 0))
+        tk.Label(name_card, text="DRIVER NAME", font=("Courier", 8),
+                 bg=SURFACE, fg=ACCENT).pack(anchor="w", padx=14, pady=(10, 4))
+        self.name_var = tk.StringVar()
+        name_entry = tk.Entry(name_card, textvariable=self.name_var, width=24)
+        style_entry(name_entry)
+        name_entry.pack(anchor="w", padx=14, pady=(0, 4), ipady=6)
+        make_label(name_card, "Printed on the report",
+                   FONT_SMALL, MUTED, bg=SURFACE).pack(anchor="w", padx=14, pady=(0, 10))
+
         # ── Optimise button ───────────────────────────────────────────────────
         self.go_btn = tk.Button(
             self, text="Optimise Route  [set depot + add 2 stops]",
@@ -234,52 +245,6 @@ class InputFrame(tk.Frame):
             cursor="hand2", state="disabled"
         )
         self.go_btn.pack(fill="x", pady=(12, 0))
-
-        # ── Right: info + samples ─────────────────────────────────────────────
-        info_card = make_card(right)
-        info_card.pack(fill="x", pady=(0, 12))
-
-        tk.Label(info_card, text="HOW IT WORKS", font=("Courier", 8),
-                 bg=SURFACE, fg=ACCENT).pack(anchor="w", padx=14, pady=(12, 6))
-
-        info_text = (
-            "1. Enter a depot postcode (start/end).\n"
-            "2. Add at least 2 delivery stops.\n"
-            "3. Click Optimise Route.\n\n"
-            "The 2-opt algorithm finds the shortest\n"
-            "delivery order by reversing route\n"
-            "segments until no improvement is found.\n\n"
-            "Distances use the Haversine formula.\n"
-            "Postcodes geocoded via postcodes.io."
-        )
-        make_label(info_card, info_text, FONT_SMALL, MUTED,
-                   justify="left", bg=SURFACE).pack(anchor="w", padx=14, pady=(0, 12))
-
-        sample_card = make_card(right)
-        sample_card.pack(fill="x")
-
-        tk.Label(sample_card, text="SAMPLE DATA (LONDON)", font=("Courier", 8),
-                 bg=SURFACE, fg=ACCENT).pack(anchor="w", padx=14, pady=(12, 6))
-
-        samples = [
-            ("SW1A 1AA", "Buckingham Palace"),
-            ("EC1A 1BB", "Barbican"),
-            ("W1A 1AA",  "Oxford Street"),
-            ("SE1 7PB",  "Southwark"),
-            ("N1 9GU",   "Islington"),
-            ("E1 6RF",   "Whitechapel"),
-            ("WC2N 5DU", "Trafalgar Square"),
-        ]
-        for pc, name in samples:
-            row = tk.Frame(sample_card, bg=SURFACE)
-            row.pack(fill="x", padx=14)
-            make_label(row, pc, FONT_MONO_S, TEXT,
-                       bg=SURFACE, width=10, anchor="w").pack(side="left")
-            make_label(row, "- " + name, FONT_MONO_S, MUTED,
-                       bg=SURFACE).pack(side="left")
-
-        make_button(sample_card, "Load Sample Data", self._load_samples,
-                 accent=False).pack(fill="x", padx=14, pady=12)
 
     # ── Depot actions ─────────────────────────────────────────────────────────
 
@@ -436,6 +401,7 @@ class InputFrame(tk.Frame):
             self.app.start_time = datetime.now().replace(
                 hour=9, minute=0, second=0, microsecond=0)
 
+        self.app.driver_name = self.name_var.get().strip()
         self.app.delivery_records = []
         self.app.current_stop_idx = 0
         self.app.show_frame("OptimiseFrame")
@@ -481,10 +447,6 @@ class OptimiseFrame(tk.Frame):
     def _done(self):
         self.progress.stop()
         self.app.show_frame("DeliveryFrame")
-
-
-# ── Frame 3: Delivery ─────────────────────────────────────────────────────────
-
 
 # ── Frame 3: Delivery ─────────────────────────────────────────────────────────
 
@@ -795,16 +757,22 @@ class ReportFrame(tk.Frame):
             records=records,
             start_time=self.app.start_time,
             opt_result=result,
+            driver_name=self.app.driver_name,
         )
         self._report = report
 
         header = tk.Frame(self, bg=BG)
         header.pack(fill="x", pady=(16, 8))
-        make_label(header, "Delivery Report", FONT_TITLE, ACCENT).pack(side="left")
+        title_col = tk.Frame(header, bg=BG)
+        title_col.pack(side="left")
+        make_label(title_col, "Delivery Report", FONT_TITLE, ACCENT).pack(anchor="w")
+        driver_txt = report.driver_name if report.driver_name else "Driver not specified"
+        make_label(title_col, "Driver: " + driver_txt, FONT_MONO_S, MUTED).pack(anchor="w")
 
         btn_row = tk.Frame(header, bg=BG)
         btn_row.pack(side="right")
         make_button(btn_row, "Save Report", self._save_report).pack(side="left", padx=(0, 8))
+        make_button(btn_row, "Save CSV", self._save_csv, accent=False).pack(side="left", padx=(0, 8))
         make_button(btn_row, "New Route", self._new_route, accent=False).pack(side="left")
 
         stats_f = tk.Frame(self, bg=BG)
@@ -849,17 +817,6 @@ class ReportFrame(tk.Frame):
 
         algo_card = make_card(right)
         algo_card.pack(fill="x", pady=(0, 8))
-        tk.Label(algo_card, text="ALGORITHM RESULTS", font=("Courier", 8),
-                 bg=SURFACE, fg=ACCENT).pack(anchor="w", padx=10, pady=(8, 4))
-        for line in [
-            "NN seed:         " + str(round(result.initial_distance_km, 2)) + " km",
-            "2-opt optimised: " + str(round(result.total_distance_km, 2)) + " km",
-            "Saved:           " + str(round(saved, 2)) + " km (" + str(round(percentage, 1)) + "%)",
-            "Iterations:      " + str(result.iterations),
-        ]:
-            tk.Label(algo_card, text="  " + line, font=FONT_MONO_S,
-                     bg=SURFACE, fg=TEXT, anchor="w").pack(fill="x", padx=4)
-        tk.Label(algo_card, text="", bg=SURFACE).pack()
 
         make_label(right, "STOP-BY-STOP", font=("Courier", 8), fg=ACCENT).pack(anchor="w")
 
@@ -930,6 +887,17 @@ class ReportFrame(tk.Frame):
             saved_path = report_module.save_report(self._report, filepath)
             messagebox.showinfo("Report Saved", "Report saved to:\n" + saved_path)
 
+    def _save_csv(self):
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Save CSV Report",
+            initialfile="delivery_report_" + datetime.now().strftime("%Y%m%d_%H%M") + ".csv"
+        )
+        if filepath:
+            saved_path = report_module.save_csv(self._report, filepath)
+            messagebox.showinfo("CSV Saved", "CSV saved to:\n" + saved_path)
+
     def _new_route(self):
         self.app.depot = None
         self.app.stops = []
@@ -937,9 +905,11 @@ class ReportFrame(tk.Frame):
         self.app.delivery_records = []
         self.app.current_stop_idx = 0
 
+        self.app.driver_name = ""
         inp = self.app.frames["InputFrame"]
         inp.depot_status.configure(text="No depot set", fg=MUTED)
         inp.stop_listbox.delete(0, "end")
+        inp.name_var.set("")
         inp._update_go_btn()
 
         self.app.show_frame("InputFrame")
