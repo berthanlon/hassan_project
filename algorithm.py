@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Implements the 2-opt swap algorithm for solving the
-Travelling Salesman Problem (TSP) — finding the shortest
+Travelling Salesman Problem (TSP) - finding the shortest
 delivery route through a set of locations.
 """
 
