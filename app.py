@@ -68,7 +68,7 @@ def make_card(parent):
 
 #Main App 
 
-class RouteMaxApp:
+class RouteMasterApp:
 
     def __init__(self):
         self.root = tk.Tk()
@@ -108,7 +108,7 @@ class RouteMaxApp:
         inner.pack(fill="x", padx=20, pady=12)
         tk.Label(inner, text="Route", font=("Helvetica", 16, "bold"),
                  bg=SURFACE, fg=TEXT).pack(side="left")
-        tk.Label(inner, text="Max", font=("Helvetica", 16, "bold"),
+        tk.Label(inner, text="Master", font=("Helvetica", 16, "bold"),
                  bg=SURFACE, fg=ACCENT).pack(side="left")
 
     def show_frame(self, name):

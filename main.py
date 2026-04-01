@@ -1,7 +1,7 @@
 #main run file to start app
 
-from app import RouteMaxApp
+from app import RouteMasterApp
 
 if __name__ == "__main__":
-    app = RouteMaxApp()
+    app = RouteMasterApp()
     app.run()

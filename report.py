@@ -72,7 +72,7 @@ def generate_text_report(report: DeliveryReport) -> str:
     lines = []
 
     lines.append(seperator)
-    lines.append("  ROUTEMAX - DELIVERY REPORT")
+    lines.append("  ROUTEMASTER - DELIVERY REPORT")
     lines.append(f"  Driver:    {report.driver_name if report.driver_name else 'Not specified'}")
     lines.append(f"  Generated: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
     lines.append(seperator)
@@ -154,7 +154,7 @@ def save_csv(report, filepath):
         writer = csv.writer(f)
 
         # Header metadata
-        writer.writerow(["RouteMax Delivery Report"])
+        writer.writerow(["RouteMaster Delivery Report"])
         writer.writerow(["Driver", report.driver_name if report.driver_name else "Not specified"])
         writer.writerow(["Generated", datetime.now().strftime("%d/%m/%Y %H:%M")])
         writer.writerow(["Depot", report.depot.postcode, report.depot.district])
