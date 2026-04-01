@@ -55,6 +55,7 @@ def make_button(parent, text, cmd, accent=True, button_width=None):
     return button
 
 
+
 def make_label(parent, text, font=FONT_BODY, fg=TEXT, **kw):
     bg = kw.pop("bg", BG)
     return tk.Label(parent, text=text, font=font, bg=bg, fg=fg, **kw)
@@ -220,7 +221,9 @@ class InputFrame(tk.Frame):
         style_entry(time_entry)
         time_entry.pack(anchor="w", padx=14, pady=(0, 4), ipady=6)
         make_label(time_card, "Format: HH:MM  e.g. 09:00",
-                   FONT_SMALL, MUTED, bg=SURFACE).pack(anchor="w", padx=14, pady=(0, 10))
+                   FONT_SMALL, MUTED, bg=SURFACE).pack(anchor="w", padx=14, pady=(0, 4))
+        self.time_error = make_label(time_card, "", FONT_SMALL, RED, bg=SURFACE)
+        self.time_error.pack(anchor="w", padx=14, pady=(0, 10))
 
         # Driver name card
         name_card = make_card(left)
@@ -391,16 +394,26 @@ class InputFrame(tk.Frame):
     # ── Start optimise ────────────────────────────────────────────────────────
 
     def _start_optimise(self):
+        # Validate time format before proceeding
+        raw = self.time_var.get().strip()
+        valid = False
         try:
-            parts = self.time_var.get().strip().split(":")
-            h = int(parts[0])
-            m = int(parts[1])
-            self.app.start_time = datetime.now().replace(
-                hour=h, minute=m, second=0, microsecond=0)
-        except Exception:
-            self.app.start_time = datetime.now().replace(
-                hour=9, minute=0, second=0, microsecond=0)
+            parts = raw.split(":")
+            if len(parts) == 2:
+                h = int(parts[0])
+                m = int(parts[1])
+                if 0 <= h <= 23 and 0 <= m <= 59:
+                    valid = True
+        except (ValueError, IndexError):
+            valid = False
 
+        if not valid:
+            self.time_error.configure(text="Invalid time — use HH:MM e.g. 09:00")
+            return
+
+        self.time_error.configure(text="")
+        self.app.start_time = datetime.now().replace(
+            hour=h, minute=m, second=0, microsecond=0)
         self.app.driver_name = self.name_var.get().strip()
         self.app.delivery_records = []
         self.app.current_stop_idx = 0
@@ -910,6 +923,7 @@ class ReportFrame(tk.Frame):
         inp.depot_status.configure(text="No depot set", fg=MUTED)
         inp.stop_listbox.delete(0, "end")
         inp.name_var.set("")
+        inp.time_error.configure(text="")
         inp._update_go_btn()
 
         self.app.show_frame("InputFrame")

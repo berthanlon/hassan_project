@@ -7,14 +7,14 @@ Converts lat/lng to screen pixels using min-max normalisation.
 import tkinter as tk
 
 COLOUR_BG         = "#0f0f18"
-COLOUR_GRID       = "#1a1a2e"
+COLOUR_GRID       = "#4a4a6a"
 COLOUR_ROUTE_DONE = "#e8ff47"
-COLOUR_ROUTE_TODO = "#2a2a40"
+COLOUR_ROUTE_TODO = "#ffffff"
 COLOUR_DEPOT      = "#e8ff47"
 COLOUR_STOP_DONE  = "#2ecc71"
 COLOUR_STOP_NEXT  = "#e8ff47"
 COLOUR_STOP_TODO  = "#3a3a5a"
-COLOUR_STOP_MUTED = "#6b6b8a"
+COLOUR_STOP_MUTED = "#ffffff"
 
 
 def _to_screen(lat, lng, min_lat, max_lat, min_lng, max_lng, width, height, pad):
@@ -43,7 +43,7 @@ def draw_route(canvas, depot, route, done_indices, current_index=None):
         width = int(canvas["width"])
         height = int(canvas["height"])
 
-    pad = 36
+    pad = 52
 
     all_locs = [depot] + route
     lats = [loc.lat for loc in all_locs]
@@ -51,8 +51,8 @@ def draw_route(canvas, depot, route, done_indices, current_index=None):
     min_lat, max_lat = min(lats), max(lats)
     min_lng, max_lng = min(lngs), max(lngs)
 
-    lat_margin = (max_lat - min_lat) * 0.12 or 0.01
-    lng_margin = (max_lng - min_lng) * 0.12 or 0.01
+    lat_margin = (max_lat - min_lat) * 0.18 or 0.02
+    lng_margin = (max_lng - min_lng) * 0.18 or 0.02
     min_lat -= lat_margin
     max_lat += lat_margin
     min_lng -= lng_margin

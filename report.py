@@ -19,8 +19,10 @@ class StopRecord:
     stop_index: int         
     location: Location
     arrived_at: datetime
+    estimated_arrival: datetime
     distance_from_prev_km: float
     travel_minutes: float
+    is_late: bool = False
 
 
 @dataclass
@@ -102,18 +104,20 @@ def generate_text_report(report: DeliveryReport) -> str:
     # Stop-by-stop table
     lines.append("STOP-BY-STOP BREAKDOWN")
     lines.append(thin)
-    header = f"  {'#':<4} {'Postcode':<12} {'Area':<22} {'Dist (km)':<12} {'Travel (min)':<14} {'Arrived'}"
+    header = f"  {'#':<4} {'Postcode':<12} {'Area':<18} {'Dist':<8} {'Est.':<8} {'Actual':<8} {'Status'}"
     lines.append(header)
-    lines.append(f"  {'-'*4} {'-'*12} {'-'*22} {'-'*12} {'-'*14} {'-'*8}")
+    lines.append(f"  {'-'*4} {'-'*12} {'-'*18} {'-'*8} {'-'*8} {'-'*8} {'-'*7}")
 
     for rec in report.records:
-        area = rec.location.district[:20] if rec.location.district else "—"
+        area   = rec.location.district[:16] if rec.location.district else "-"
+        status = "LATE" if rec.is_late else "ON TIME"
         row = (f"  {rec.stop_index + 1:<4} "
                f"{rec.location.postcode:<12} "
-               f"{area:<22} "
-               f"{rec.distance_from_prev_km:<12.2f} "
-               f"{rec.travel_minutes:<14.1f} "
-               f"{rec.arrived_at.strftime('%H:%M')}")
+               f"{area:<18} "
+               f"{rec.distance_from_prev_km:<8.2f} "
+               f"{rec.estimated_arrival.strftime('%H:%M'):<8} "
+               f"{rec.arrived_at.strftime('%H:%M'):<8} "
+               f"{status}")
         lines.append(row)
 
     lines.append("")
@@ -164,15 +168,17 @@ def save_csv(report, filepath):
         writer.writerow([])
 
         # Stop-by-stop data
-        writer.writerow(["Stop #", "Postcode", "Area", "Distance from Prev (km)", "Travel Time (min)", "Arrived At"])
+        writer.writerow(["Stop #", "Postcode", "Area", "Distance (km)", "Est. Arrival", "Actual Arrival", "Travel (min)", "Status"])
         for rec in report.records:
             writer.writerow([
                 rec.stop_index + 1,
                 rec.location.postcode,
                 rec.location.district or "",
                 round(rec.distance_from_prev_km, 2),
-                round(rec.travel_minutes, 1),
+                rec.estimated_arrival.strftime("%H:%M"),
                 rec.arrived_at.strftime("%H:%M"),
+                round(rec.travel_minutes, 1),
+                "LATE" if rec.is_late else "ON TIME",
             ])
 
     return filepath

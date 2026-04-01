@@ -1,10 +1,4 @@
-"""
-RouteMax — 2-Opt Delivery Route Optimiser
-
-Entry point. Run this file to start the application:
-    python main.py
-
-"""
+#main run file to start app
 
 from app import RouteMaxApp
 
