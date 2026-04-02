@@ -259,7 +259,7 @@ class InputFrame(tk.Frame):
         make_button(stop_card, "Remove Selected", self._remove_stop,
                  accent=False).pack(anchor="w", padx=14, pady=(0, 12))
 
-        # ── Time card ─────────────────────────────────────────────────────────
+        ##################################  Time card ################################## 
         time_card = make_card(left)
         time_card.pack(fill="x")
 
@@ -287,7 +287,7 @@ class InputFrame(tk.Frame):
         make_label(name_card, "Printed on the report",
                    FONT_SMALL, MUTED, bg=SURFACE).pack(anchor="w", padx=14, pady=(0, 10))
 
-        # ── Optimise button ───────────────────────────────────────────────────
+        ################################## Optimise button ################################## 
         self.go_btn = tk.Button(
             self, text="Optimise Route  [set depot + add 2 stops]",
             command=self._start_optimise,
@@ -299,7 +299,7 @@ class InputFrame(tk.Frame):
         )
         self.go_btn.pack(fill="x", pady=(12, 0))
 
-    # ── Depot actions ─────────────────────────────────────────────────────────
+    ################################## Depot actions ################################## 
 
     def _set_depot(self):
         pc = self.depot_var.get().strip()
@@ -333,7 +333,7 @@ class InputFrame(tk.Frame):
         self.depot_status.configure(text=txt, fg=ACCENT)
         self._update_go_btn()
 
-    # ── Stop actions ──────────────────────────────────────────────────────────
+    ############### Stop actions ################################## 
 
     def _add_stop(self):
         pc = self.stop_var.get().strip()
@@ -413,7 +413,7 @@ class InputFrame(tk.Frame):
                 state="disabled", bg=SURFACE2, fg=MUTED,
                 text="Optimise Route  [" + ", ".join(needed) + "]")
 
-    # ── Sample data ───────────────────────────────────────────────────────────
+    ######################## Sample data ################################## 
 
     def _load_samples(self):
         self.app.depot = None
@@ -441,7 +441,7 @@ class InputFrame(tk.Frame):
         self._refresh_listbox()
         self._update_go_btn()
 
-    # ── Start optimise ────────────────────────────────────────────────────────
+    ################ Start optimise ################################## 
 
     def _start_optimise(self):
         # Validate time format before proceeding
@@ -470,7 +470,7 @@ class InputFrame(tk.Frame):
         self.app.show_frame("OptimiseFrame")
 
 
-# ── Frame 2: Optimising ───────────────────────────────────────────────────────
+#  Frame 2: Optimising 
 
 class OptimiseFrame(tk.Frame):
 
@@ -511,7 +511,7 @@ class OptimiseFrame(tk.Frame):
         self.progress.stop()
         self.app.show_frame("DeliveryFrame")
 
-# ── Frame 3: Delivery ─────────────────────────────────────────────────────────
+#  Frame 3: Delivery 
 
 class DeliveryFrame(tk.Frame):
     """
@@ -537,12 +537,12 @@ class DeliveryFrame(tk.Frame):
         total  = len(stops)
         n_done = len(done)
 
-        # ── Title row ─────────────────────────────────────────────────────────
+        #  Title row ################################## 
         hdr = tk.Frame(self, bg=BG)
         hdr.pack(fill="x", pady=(12, 4))
         make_label(hdr, "On the Road", FONT_TITLE, ACCENT).pack(side="left")
 
-        # ── Progress bar ──────────────────────────────────────────────────────
+        # Progress bar ################################## 
         prog_frame = tk.Frame(self, bg=BG)
         prog_frame.pack(fill="x", pady=(0, 6))
 
@@ -558,7 +558,7 @@ class DeliveryFrame(tk.Frame):
         tk.Frame(bar_bg, bg=ACCENT, height=8, width=fill_w).place(x=0, y=0, relheight=1,
                                                                     relwidth=pct/100)
 
-        # ── Stats row ─────────────────────────────────────────────────────────
+        # Stats row ################################## 
         stats_row = tk.Frame(self, bg=BG)
         stats_row.pack(fill="x", pady=(0, 8))
 
@@ -583,7 +583,7 @@ class DeliveryFrame(tk.Frame):
             tk.Label(chip, text=lbl, font=("Courier", 7),
                      bg=SURFACE, fg=MUTED).pack(padx=10, pady=(0, 6))
 
-        # ── Main area: map left, stop list right ──────────────────────────────
+        # Main area- map left, stop list right ################################## 
         main = tk.Frame(self, bg=BG)
         main.pack(fill="both", expand=True)
         main.columnconfigure(0, weight=1)
@@ -608,7 +608,7 @@ class DeliveryFrame(tk.Frame):
         self._delivery_map.bind("<Configure>", lambda e: _do_map_draw())
         self._delivery_map.after(100, _do_map_draw)
 
-        # Stop list (right column)
+        # Stop list (right)
         right = tk.Frame(main, bg=BG)
         right.grid(row=0, column=1, sticky="nsew")
         right.rowconfigure(1, weight=1)
