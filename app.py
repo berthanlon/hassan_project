@@ -23,7 +23,7 @@ ACCENT   = "#e8ff47"
 ACCENT2  = "#47ffe8"
 RED      = "#ff4757"
 TEXT     = "#e8e8f0"
-MUTED    = "#6b6b8a"
+MUTED    = "#ffffff"
 GREEN    = "#2ecc71"
 
 FONT_TITLE  = ("Helvetica", 22, "bold")
@@ -73,9 +73,13 @@ class RouteMasterApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("RouteMaster")
-        self.root.geometry("960x700")
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        w  = min(960, int(sw * 0.92))
+        h  = min(700, int(sh * 0.88))
+        self.root.geometry(str(w) + "x" + str(h))
         self.root.configure(bg=BG)
-        self.root.minsize(800, 600)
+        self.root.minsize(600, 450)
 
         # Shared state
         self.depot = None
@@ -88,15 +92,61 @@ class RouteMasterApp:
 
         self._build_header()
 
-        self._container = tk.Frame(self.root, bg=BG)
-        self._container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        # Outer scrollable wrapper
+        wrap = tk.Frame(self.root, bg=BG)
+        wrap.pack(fill="both", expand=True)
+        wrap.rowconfigure(0, weight=1)
+        wrap.columnconfigure(0, weight=1)
+
+        self._vscroll = tk.Scrollbar(wrap, orient="vertical",   bg=SURFACE, troughcolor=BG)
+        self._hscroll = tk.Scrollbar(wrap, orient="horizontal", bg=SURFACE, troughcolor=BG)
+        self._vscroll.grid(row=0, column=1, sticky="ns")
+        self._hscroll.grid(row=1, column=0, sticky="ew")
+
+        self._scroll_canvas = tk.Canvas(
+            wrap, bg=BG, highlightthickness=0,
+            yscrollcommand=self._vscroll.set,
+            xscrollcommand=self._hscroll.set
+        )
+        self._scroll_canvas.grid(row=0, column=0, sticky="nsew")
+        self._vscroll.config(command=self._scroll_canvas.yview)
+        self._hscroll.config(command=self._scroll_canvas.xview)
+
+        # Inner container — fixed size so scroll canvas knows how big content is
+        self._container = tk.Frame(self._scroll_canvas, bg=BG, width=920, height=900)
+        self._container.pack_propagate(False)
+        self._canvas_win = self._scroll_canvas.create_window(
+            (0, 0), window=self._container, anchor="nw"
+        )
+
+        def _update_scrollregion(e=None):
+            self._scroll_canvas.configure(
+                scrollregion=(0, 0,
+                              max(self._container.winfo_reqwidth(),  self._scroll_canvas.winfo_width()),
+                              max(self._container.winfo_reqheight(), self._scroll_canvas.winfo_height()))
+            )
+            # Stretch inner frame if canvas is bigger
+            cw = self._scroll_canvas.winfo_width()
+            ch = self._scroll_canvas.winfo_height()
+            if self._container.winfo_reqwidth() < cw:
+                self._scroll_canvas.itemconfig(self._canvas_win, width=cw)
+            if self._container.winfo_reqheight() < ch:
+                self._scroll_canvas.itemconfig(self._canvas_win, height=ch)
+
+        self._container.bind("<Configure>", _update_scrollregion)
+        self._scroll_canvas.bind("<Configure>", _update_scrollregion)
+
+        # Mouse wheel — vertical scroll
+        def _mousewheel(e):
+            self._scroll_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        self._scroll_canvas.bind_all("<MouseWheel>", _mousewheel)
 
         self.frames = {}
         for FrameClass in (InputFrame, OptimiseFrame, DeliveryFrame, ReportFrame):
             name = FrameClass.__name__
             frame = FrameClass(self._container, self)
             self.frames[name] = frame
-            frame.place(relx=0, rely=0, relwidth=1, relheight=1)
+            frame.place(x=0, y=0, width=920, height=900)
 
         self.show_frame("InputFrame")
 
@@ -546,12 +596,12 @@ class DeliveryFrame(tk.Frame):
         make_label(map_card, "ROUTE MAP", font=("Courier", 8),
                    fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=8, pady=(6, 2))
         map_c = tk.Canvas(map_card, bg=map_canvas.COLOUR_BG,
-                          highlightthickness=0, width=300, height=300)
+                          highlightthickness=0, width=400, height=380)
         map_c.pack(fill="both", expand=True, padx=4, pady=(0, 4))
-        # Draw after layout settles
-        map_c.update_idletasks()
-        map_canvas.draw_route(map_c, self.app.depot, stops, done,
-                               current if current < total else None)
+        # Delay draw so canvas has its real rendered size
+        cur_idx = current if current < total else None
+        map_c.after(50, lambda c=map_c, ci=cur_idx: map_canvas.draw_route(
+            c, self.app.depot, stops, done, ci))
 
         # Stop list (right column)
         right = tk.Frame(main, bg=BG)
@@ -821,9 +871,9 @@ class ReportFrame(tk.Frame):
                    fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=10, pady=(8, 4))
         self.report_map = tk.Canvas(
             map_frame, bg=map_canvas.COLOUR_BG,
-            highlightthickness=0, width=300, height=300)
+            highlightthickness=0, width=400, height=380)
         self.report_map.pack(fill="both", expand=True, padx=6, pady=(0, 6))
-        self.after(120, self._draw_report_map)
+        self.after(150, self._draw_report_map)
 
         right = tk.Frame(paned, bg=BG)
         paned.add(right, minsize=280)
@@ -884,6 +934,7 @@ class ReportFrame(tk.Frame):
         table.pack(side="left", fill="both", expand=True)
 
     def _draw_report_map(self):
+        self.report_map.update_idletasks()
         done = set(r.stop_index for r in self.app.delivery_records)
         map_canvas.draw_route(
             self.report_map, self.app.depot,

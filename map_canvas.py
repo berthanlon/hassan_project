@@ -39,7 +39,7 @@ def draw_route(canvas, depot, route, done_indices, current_index=None):
 
     width = canvas.winfo_width()
     height = canvas.winfo_height()
-    if width < 10:
+    if width < 50:
         width = int(canvas["width"])
         height = int(canvas["height"])
 
