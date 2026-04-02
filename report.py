@@ -67,7 +67,7 @@ def generate_text_report(report: DeliveryReport) -> str:
     """
     Produce a formatted plain-text report string.
     """
-    seperator = "=" * 60
+    seperator = "-" * 60
     thin = "-" * 60
     lines = []
 
