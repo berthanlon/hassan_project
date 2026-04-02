@@ -596,12 +596,15 @@ class DeliveryFrame(tk.Frame):
         make_label(map_card, "ROUTE MAP", font=("Courier", 8),
                    fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=8, pady=(6, 2))
         map_c = tk.Canvas(map_card, bg=map_canvas.COLOUR_BG,
-                          highlightthickness=0, width=300, height=300)
+                          highlightthickness=0, width=400, height=360)
         map_c.pack(fill="both", expand=True, padx=4, pady=(0, 4))
-        # Draw after layout settles
-        map_c.update_idletasks()
-        map_canvas.draw_route(map_c, self.app.depot, stops, done,
-                               current if current < total else None)
+        cur_idx = current if current < total else None
+        def _do_map_draw(e=None):
+            map_canvas.draw_route(
+                map_c, self.app.depot, stops,
+                set(r.stop_index for r in self.app.delivery_records), cur_idx)
+        map_c.bind("<Configure>", lambda e: _do_map_draw())
+        map_c.after(100, _do_map_draw)
 
         # Stop list (right column)
         right = tk.Frame(main, bg=BG)
@@ -671,7 +674,41 @@ class DeliveryFrame(tk.Frame):
                      bg=badge_bg, fg=badge_fg,
                      width=5, pady=10).pack(side="left")
 
-            # Centre info
+            # Button packed FIRST so it always gets space
+            right_side = tk.Frame(card, bg=card_bg)
+            right_side.pack(side="right", padx=10, pady=6)
+
+            if is_done:
+                record        = next(r for r in self.app.delivery_records if r.stop_index == i)
+                status_colour = RED if record.is_late else GREEN
+                status_word   = "LATE" if record.is_late else "ON TIME"
+                tk.Label(right_side, text="DELIVERED",
+                         font=("Courier", 8, "bold"),
+                         bg=card_bg, fg=status_colour).pack()
+            elif is_currrent:
+                tk.Button(right_side,
+                          text="MARK DELIVERED",
+                          command=lambda idx=i: self._tick(idx),
+                          bg=ACCENT, fg="#000",
+                          font=("Helvetica", 10, "bold"),
+                          relief="flat", bd=0,
+                          padx=16, pady=10,
+                          cursor="hand2",
+                          activebackground="#c8df20",
+                          activeforeground="#000").pack()
+            else:
+                tk.Button(right_side,
+                          text="Deliver",
+                          command=lambda idx=i: self._tick(idx),
+                          bg=SURFACE2, fg=MUTED,
+                          font=("Helvetica", 9),
+                          relief="flat", bd=0,
+                          padx=10, pady=6,
+                          cursor="hand2",
+                          activebackground=ACCENT,
+                          activeforeground="#000").pack()
+
+            # Info packed AFTER button so it fills remaining space only
             info = tk.Frame(card, bg=card_bg)
             info.pack(side="left", fill="both", expand=True, padx=8, pady=6)
 
@@ -689,14 +726,13 @@ class DeliveryFrame(tk.Frame):
                      bg=card_bg, fg=MUTED,
                      anchor="w").pack(fill="x")
 
-            # Status line
             if is_done:
-                record = next(r for r in self.app.delivery_records if r.stop_index == i)
-                status = ("Delivered at " + record.arrived_at.strftime("%H:%M")
-                          + "   |   " + str(round(record.distance_from_prev_km, 2)) + " km"
-                          + "   |   " + str(round(record.travel_minutes, 1)) + " min travel")
+                status = ("Est: " + record.estimated_arrival.strftime("%H:%M")
+                          + "   Actual: " + record.arrived_at.strftime("%H:%M")
+                          + "   " + str(round(record.distance_from_prev_km, 2)) + " km"
+                          + "   " + status_word)
                 tk.Label(info, text=status,
-                         font=("Courier", 8), bg=card_bg, fg=GREEN,
+                         font=("Courier", 8), bg=card_bg, fg=status_colour,
                          anchor="w").pack(fill="x")
             elif is_currrent:
                 prev_loc = self.app.depot if i == 0 else stops[i - 1]
@@ -715,39 +751,6 @@ class DeliveryFrame(tk.Frame):
                          bg=card_bg, fg=MUTED,
                          anchor="w").pack(fill="x")
 
-            # Right: deliver button or done label
-            right_side = tk.Frame(card, bg=card_bg)
-            right_side.pack(side="right", padx=10, pady=6)
-
-            if is_done:
-                tk.Label(right_side, text="DELIVERED",
-                         font=("Courier", 8, "bold"),
-                         bg=card_bg, fg=GREEN).pack()
-            elif is_currrent:
-                # Big prominent deliver button
-                tk.Button(right_side,
-                          text="MARK\nDELIVERED",
-                          command=lambda idx=i: self._tick(idx),
-                          bg=ACCENT, fg="#000",
-                          font=("Helvetica", 10, "bold"),
-                          relief="flat", bd=0,
-                          padx=16, pady=10,
-                          cursor="hand2",
-                          activebackground="#c8df20",
-                          activeforeground="#000").pack()
-            else:
-                # Greyed out button for future stops
-                tk.Button(right_side,
-                          text="Deliver",
-                          command=lambda idx=i: self._tick(idx),
-                          bg=SURFACE2, fg=MUTED,
-                          font=("Helvetica", 9),
-                          relief="flat", bd=0,
-                          padx=10, pady=6,
-                          cursor="hand2",
-                          activebackground=ACCENT,
-                          activeforeground="#000").pack()
-
         # Scroll to current stop after a moment
         if current > 0 and current < total:
             self.after(150, lambda: self._scroll_to_stop(sc, inner, current))
@@ -764,25 +767,36 @@ class DeliveryFrame(tk.Frame):
     def _tick(self, idx):
         stops = self.app.opt_result.route
 
+        # Estimated arrival from start time at 40 km/h
         if not self.app.delivery_records:
-            prev_loc  = self.app.depot
-            prev_time = self.app.start_time
+            prev_loc      = self.app.depot
+            prev_est_time = self.app.start_time
         else:
-            last      = self.app.delivery_records[-1]
-            prev_loc  = stops[last.stop_index]
-            prev_time = last.arrived_at
+            last          = self.app.delivery_records[-1]
+            prev_loc      = stops[last.stop_index]
+            prev_est_time = last.estimated_arrival
 
-        dist_km     = algorithm.haversine(prev_loc, stops[idx])
-        travel_secs = (dist_km / 40.0) * 3600
-        arrived_at  = prev_time + timedelta(seconds=travel_secs)
-        travel_mins = travel_secs / 60.0
+        dist_km           = algorithm.haversine(prev_loc, stops[idx])
+        travel_secs       = (dist_km / 40.0) * 3600
+        estimated_arrival = prev_est_time + timedelta(seconds=travel_secs)
+
+        # Actual time from real clock
+        arrived_at  = datetime.now()
+        prev_actual = self.app.delivery_records[-1].arrived_at if self.app.delivery_records else self.app.start_time
+        travel_mins = (arrived_at - prev_actual).total_seconds() / 60.0
+
+        # Late if actual is any time after estimated
+        diff_mins = (arrived_at - estimated_arrival).total_seconds() / 60.0
+        is_late   = diff_mins > 0.0
 
         rec = report_module.StopRecord(
             stop_index=idx,
             location=stops[idx],
             arrived_at=arrived_at,
+            estimated_arrival=estimated_arrival,
             distance_from_prev_km=dist_km,
             travel_minutes=travel_mins,
+            is_late=is_late,
         )
         self.app.delivery_records.append(rec)
         self.app.current_stop_idx = idx + 1
@@ -871,9 +885,10 @@ class ReportFrame(tk.Frame):
                    fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=10, pady=(8, 4))
         self.report_map = tk.Canvas(
             map_frame, bg=map_canvas.COLOUR_BG,
-            highlightthickness=0, width=300, height=300)
+            highlightthickness=0, width=400, height=360)
         self.report_map.pack(fill="both", expand=True, padx=6, pady=(0, 6))
-        self.after(120, self._draw_report_map)
+        self.report_map.bind("<Configure>", lambda e: self._draw_report_map())
+        self.after(150, self._draw_report_map)
 
         right = tk.Frame(paned, bg=BG)
         paned.add(right, minsize=280)
@@ -934,6 +949,7 @@ class ReportFrame(tk.Frame):
         table.pack(side="left", fill="both", expand=True)
 
     def _draw_report_map(self):
+        self.report_map.update_idletasks()
         done = set(r.stop_index for r in self.app.delivery_records)
         map_canvas.draw_route(
             self.report_map, self.app.depot,
