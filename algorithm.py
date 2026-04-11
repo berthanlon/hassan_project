@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Implements the 2-opt swap algorithm for solving the
-Travelling Salesman Problem (TSP) — finding the shortest
+Travelling Salesman Problem (TSP) - finding the shortest
 delivery route through a set of locations.
 """
 
@@ -149,33 +149,20 @@ def two_opt(stops: list[Location], depot: Location,
         improved = False
         iterations += 1
         n = len(route)
-        print(f"Iteration number: {iterations}")
-        swap_number = 1
-        for i in range(1, n - 1):
-            for k in range(i + 1, n):
-                print(f"Swap number {swap_number}")
-                candidate = two_opt_swap(route, i, k)
+
+        for edge_start in range(1, n - 1):
+            for edge_end in range(edge_start + 1, n):
+                candidate = two_opt_swap(route, edge_start, edge_end)
                 candidate_dist = route_distance(candidate, depot, matrix, all_locs)
-                print(f"candidate route: {candidate}")
-                print(f"candidate distance: {candidate_dist}")
+
                 if candidate_dist < best_dist - 1e-6:
                     route = candidate
                     best_dist = candidate_dist
                     improved = True
                     improvement_log.append(
-                        f"Iteration {iterations}, swap({i},{k}): {best_dist:.2f} km"
+                        f"Iteration {iterations}, swap({edge_start},{edge_end}): {best_dist:.2f} km"
                     )
-                    print("Candidate shorter than orignal, accepting this as new route\n")
-                else:
-                    print("No improvement\n")
-                swap_number += 1
-        print("final route")
-        print(route)
-        print("final dist")
-        print(best_dist)
-        print("\n\n\n")
 
-    print("No improvemnt observed in this iteration, ending the search")
     log(f"2-opt complete. {iterations} iteration(s). Final: {best_dist:.2f} km")
     log(f"Improvement: {initial_dist - best_dist:.2f} km saved "
         f"({(initial_dist - best_dist) / initial_dist * 100:.1f}%)")

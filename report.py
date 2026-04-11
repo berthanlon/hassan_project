@@ -90,17 +90,6 @@ def generate_text_report(report: DeliveryReport) -> str:
     lines.append("")
 
 
-    # Highlights
-    lines.append("HIGHLIGHTS")
-    lines.append(thin)
-    fastest = report.fastest_stop
-    slowest = report.slowest_stop
-    lines.append(f"  Fastest stop:  Stop {fastest.stop_index + 1} - {fastest.location.postcode} "
-                 f"({fastest.travel_minutes:.1f} min, {fastest.distance_from_prev_km:.2f} km)")
-    lines.append(f"  Slowest stop:  Stop {slowest.stop_index + 1} - {slowest.location.postcode} "
-                 f"({slowest.travel_minutes:.1f} min, {slowest.distance_from_prev_km:.2f} km)")
-    lines.append("")
-
     # Stop-by-stop table
     lines.append("STOP-BY-STOP BREAKDOWN")
     lines.append(thin)

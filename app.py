@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 
 import geocoder
 import algorithm
-import map_canvas
 import report as report_module
 
 
@@ -142,7 +141,7 @@ class RouteMasterApp:
         self._scroll_canvas.bind_all("<MouseWheel>", _mousewheel)
 
         self.frames = {}
-        for FrameClass in (InputFrame, OptimiseFrame, DeliveryFrame, ReportFrame):
+        for FrameClass in (InputFrame, DeliveryFrame, ReportFrame):
             name = FrameClass.__name__
             frame = FrameClass(self._container, self)
             self.frames[name] = frame
@@ -467,49 +466,20 @@ class InputFrame(tk.Frame):
         self.app.driver_name = self.name_var.get().strip()
         self.app.delivery_records = []
         self.app.current_stop_idx = 0
-        self.app.show_frame("OptimiseFrame")
+        # Run algorithm in background, go straight to delivery
+        self.go_btn.configure(state="disabled", text="Optimising...")
+        def run():
+            result = algorithm.optimise_route(self.app.depot, self.app.stops)
+            self.app.opt_result = result
+            self.after(0, self._on_optimised)
+        threading.Thread(target=run, daemon=True).start()
 
-
-# ── Frame 2: Optimising ───────────────────────────────────────────────────────
-
-class OptimiseFrame(tk.Frame):
-
-    def __init__(self, parent, app):
-        super().__init__(parent, bg=BG)
-        self.app = app
-        self._build()
-
-    def _build(self):
-        wrapper = tk.Frame(self, bg=BG)
-        wrapper.place(relx=0.5, rely=0.5, anchor="center")
-
-        make_label(wrapper, "Optimising Route", FONT_TITLE, ACCENT).pack(pady=(0, 4))
-        make_label(wrapper, "Running nearest-neighbour + 2-opt swap...",
-                   FONT_BODY, MUTED).pack()
-
-        self.progress = ttk.Progressbar(wrapper, length=420, mode="indeterminate")
-        self.progress.pack(pady=28)
-
-        self.log_var = tk.StringVar(value="Starting...")
-        make_label(wrapper, "", FONT_MONO_S, MUTED, textvariable=self.log_var).pack()
-
-    def on_show(self):
-        self.progress.start(12)
-        self.log_var.set("Building distance matrix...")
-        threading.Thread(target=self._run, daemon=True).start()
-
-    def _run(self):
-        def cb(msg):
-            self.after(0, lambda m=msg: self.log_var.set(m))
-
-        result = algorithm.optimise_route(
-            self.app.depot, self.app.stops, progress_callback=cb)
-        self.app.opt_result = result
-        self.after(600, self._done)
-
-    def _done(self):
-        self.progress.stop()
+    def _on_optimised(self):
+        self.go_btn.configure(state="normal", bg=ACCENT, fg="#000",
+                              text="Optimise Route  ->")
         self.app.show_frame("DeliveryFrame")
+
+
 
 # ── Frame 3: Delivery ─────────────────────────────────────────────────────────
 
@@ -537,80 +507,9 @@ class DeliveryFrame(tk.Frame):
         total  = len(stops)
         n_done = len(done)
 
-        # ── Title row ─────────────────────────────────────────────────────────
-        hdr = tk.Frame(self, bg=BG)
-        hdr.pack(fill="x", pady=(12, 4))
-        make_label(hdr, "On the Road", FONT_TITLE, ACCENT).pack(side="left")
-
-        # ── Progress bar ──────────────────────────────────────────────────────
-        prog_frame = tk.Frame(self, bg=BG)
-        prog_frame.pack(fill="x", pady=(0, 6))
-
-        pct = int(n_done / total * 100) if total > 0 else 0
-        make_label(prog_frame,
-                   str(n_done) + " of " + str(total) + " stops delivered  (" + str(pct) + "%)",
-                   FONT_MONO_S, MUTED).pack(anchor="w")
-
-        bar_bg = tk.Frame(prog_frame, bg=BORDER, height=8)
-        bar_bg.pack(fill="x", pady=(4, 0))
-        bar_bg.update_idletasks()
-        fill_w = max(1, int(bar_bg.winfo_reqwidth() * pct / 100))
-        tk.Frame(bar_bg, bg=ACCENT, height=8, width=fill_w).place(x=0, y=0, relheight=1,
-                                                                    relwidth=pct/100)
-
-        # ── Stats row ─────────────────────────────────────────────────────────
-        stats_row = tk.Frame(self, bg=BG)
-        stats_row.pack(fill="x", pady=(0, 8))
-
-        elapsed_min = 0
-        km_done = 0.0
-        if self.app.delivery_records:
-            delta = self.app.delivery_records[-1].arrived_at - self.app.start_time
-            elapsed_min = int(delta.total_seconds() / 60)
-            km_done = sum(r.distance_from_prev_km for r in self.app.delivery_records)
-
-        chips = [
-            (str(n_done) + " / " + str(total),               "STOPS DONE"),
-            (str(elapsed_min) + " min",                       "TIME ELAPSED"),
-            (str(round(km_done, 1)) + " km",                  "DIST COVERED"),
-            (str(round(result.total_distance_km, 1)) + " km", "TOTAL ROUTE"),
-        ]
-        for val, lbl in chips:
-            chip = make_card(stats_row)
-            chip.pack(side="left", padx=(0, 8))
-            tk.Label(chip, text=val, font=("Helvetica", 12, "bold"),
-                     bg=SURFACE, fg=ACCENT2).pack(padx=10, pady=(6, 1))
-            tk.Label(chip, text=lbl, font=("Courier", 7),
-                     bg=SURFACE, fg=MUTED).pack(padx=10, pady=(0, 6))
-
-        # ── Main area: map left, stop list right ──────────────────────────────
-        main = tk.Frame(self, bg=BG)
-        main.pack(fill="both", expand=True)
-        main.columnconfigure(0, weight=1)
-        main.columnconfigure(1, weight=2)
-        main.rowconfigure(0, weight=1)
-
-        # Map
-        map_card = make_card(main)
-        map_card.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
-        make_label(map_card, "ROUTE MAP", font=("Courier", 8),
-                   fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=8, pady=(6, 2))
-        map_c = tk.Canvas(map_card, bg=map_canvas.COLOUR_BG,
-                          highlightthickness=0, width=400, height=360)
-        map_c.pack(fill="both", expand=True, padx=4, pady=(0, 4))
-        cur_idx = current if current < total else None
-        def _do_map_draw(e=None):
-            map_canvas.draw_route(
-                map_c, self.app.depot, stops,
-                set(r.stop_index for r in self.app.delivery_records), cur_idx)
-        map_c.bind("<Configure>", lambda e: _do_map_draw())
-        map_c.after(100, _do_map_draw)
-
-        # Stop list (right column)
-        right = tk.Frame(main, bg=BG)
-        right.grid(row=0, column=1, sticky="nsew")
-        right.rowconfigure(1, weight=1)
-        right.columnconfigure(0, weight=1)
+        # Stop list
+        right = tk.Frame(self, bg=BG)
+        right.pack(fill="both", expand=True)
 
         make_label(right, "DELIVERY STOPS", font=("Courier", 8),
                    fg=ACCENT).grid(row=0, column=0, sticky="w", pady=(0, 4))
@@ -852,46 +751,8 @@ class ReportFrame(tk.Frame):
         make_button(btn_row, "Save CSV", self._save_csv, accent=False).pack(side="left", padx=(0, 8))
         make_button(btn_row, "New Route", self._new_route, accent=False).pack(side="left")
 
-        stats_f = tk.Frame(self, bg=BG)
-        stats_f.pack(fill="x", pady=(0, 10))
-
-        saved = result.initial_distance_km - result.total_distance_km
-        percentage   = saved / result.initial_distance_km * 100 \
-                if result.initial_distance_km > 0 else 0
-
-        stat_data = [
-            (str(round(report.total_minutes)),                   "TOTAL MINUTES"),
-            (str(round(report.total_km, 1)) + " km",            "KM TRAVELLED"),
-            (str(len(records)),                                "STOPS DONE"),
-            (str(round(report.avg_minutes_per_stop, 1)),         "AVG MIN/STOP"),
-            (str(round(report.fastest_stop.travel_minutes, 1)), "FASTEST (MIN)"),
-            (str(round(report.slowest_stop.travel_minutes, 1)), "SLOWEST (MIN)"),
-        ]
-        for val, label in stat_data:
-            c = make_card(stats_f)
-            c.pack(side="left", padx=(0, 6), fill="y")
-            tk.Label(c, text=val, font=("Helvetica", 16, "bold"),
-                     bg=SURFACE, fg=ACCENT).pack(padx=12, pady=(10, 2))
-            tk.Label(c, text=label, font=("Courier", 7),
-                     bg=SURFACE, fg=MUTED).pack(padx=12, pady=(0, 10))
-
-        paned = tk.PanedWindow(self, orient="horizontal", bg=BG,
-                                sashwidth=6, sashrelief="flat")
-        paned.pack(fill="both", expand=True)
-
-        map_frame = make_card(paned)
-        paned.add(map_frame, minsize=280)
-        make_label(map_frame, "OPTIMISED ROUTE", font=("Courier", 8),
-                   fg=ACCENT, bg=SURFACE).pack(anchor="w", padx=10, pady=(8, 4))
-        self.report_map = tk.Canvas(
-            map_frame, bg=map_canvas.COLOUR_BG,
-            highlightthickness=0, width=400, height=360)
-        self.report_map.pack(fill="both", expand=True, padx=6, pady=(0, 6))
-        self.report_map.bind("<Configure>", lambda e: self._draw_report_map())
-        self.after(150, self._draw_report_map)
-
-        right = tk.Frame(paned, bg=BG)
-        paned.add(right, minsize=280)
+        right = tk.Frame(self, bg=BG)
+        right.pack(fill="both", expand=True)
 
         algo_card = make_card(right)
         algo_card.pack(fill="x", pady=(0, 8))
@@ -904,12 +765,12 @@ class ReportFrame(tk.Frame):
         scrollbar = tk.Scrollbar(table_frame, bg=SURFACE, troughcolor=BG)
         scrollbar.pack(side="right", fill="y")
 
-        cols = ("#", "Postcode", "Area", "Dist km", "Mins", "Arrived")
+        cols = ("#", "Postcode", "Area", "Dist km", "Estimated", "Actual", "Status")
         table = ttk.Treeview(table_frame, columns=cols, show="headings",
                             yscrollcommand=scrollbar.set, height=10)
         scrollbar.configure(command=table.yview)
 
-        widths = [30, 90, 140, 65, 55, 60]
+        widths = [30, 90, 110, 60, 70, 70, 65]
         for col, w in zip(cols, widths):
             table.heading(col, text=col)
             table.column(col, width=w, anchor="w")
@@ -938,22 +799,16 @@ class ReportFrame(tk.Frame):
             table.insert("", "end", values=(
                 rec.stop_index + 1,
                 rec.location.postcode,
-                (rec.location.district or "-")[:18],
+                (rec.location.district or "-")[:15],
                 str(round(rec.distance_from_prev_km, 2)),
-                str(round(rec.travel_minutes, 1)),
+                rec.estimated_arrival.strftime("%H:%M"),
                 rec.arrived_at.strftime("%H:%M"),
-            ), tags=(tag,))
+                "LATE" if rec.is_late else "ON TIME",
+            ), tags=("slow" if rec.is_late else "fast",))
 
         table.tag_configure("fast", foreground=GREEN)
         table.tag_configure("slow", foreground=RED)
         table.pack(side="left", fill="both", expand=True)
-
-    def _draw_report_map(self):
-        self.report_map.update_idletasks()
-        done = set(r.stop_index for r in self.app.delivery_records)
-        map_canvas.draw_route(
-            self.report_map, self.app.depot,
-            self.app.opt_result.route, done, current_index=None)
 
     def _save_report(self):
         filepath = filedialog.asksaveasfilename(
