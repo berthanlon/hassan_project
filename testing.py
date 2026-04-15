@@ -1,22 +1,22 @@
+# Importing functions from algorithm and geocode files which will be tested
 from geocoder import bulk_geocode
 from algorithm import Location, build_distance_matrix, nearest_neighbour, route_distance, two_opt_swap, two_opt
 
+# Hard coding depot and stops to be used in the test
 depot_postcode = "SW1A 1AA"
 stop_postcodes = [
         "LE16 8HN",
         "B29 7AY",
         "L3 6BU",
         "NN18 8SP",
-        "YO12 5DF",
-        "WS10 8LF",
-        "SO53 3LD",
-        "WS6 6HA",
-        "KY99 9PP",
-        "DH9 9PE",
-        "SG12 7EG"
+
     ]
 
+#
 def test_geocoder(depot, stops):
+    
+    # Function which tests the geocoder, and returns the longitude and latitude coordinates of the stops
+    
     all_postcodes = [depot] + stops
     result = bulk_geocode(all_postcodes)
     print(result)
@@ -24,6 +24,9 @@ def test_geocoder(depot, stops):
 
 
 def test_distance_matrix(all_locs):
+
+    # Calls build distance matrix, prints out and returns the result
+
     dist_matrix = build_distance_matrix(all_locs)
     print("distance matrix:")
     print(dist_matrix)
@@ -31,10 +34,18 @@ def test_distance_matrix(all_locs):
 
 
 def test_nearest_neighbour(stops, depot, matrix, all_locs):
+
+    # Runs nearest neighbour algorithm, and calculates the % improvement from the original route.
+
+    # Run NN algorithm 
     nearest_neighbour_route = nearest_neighbour(stops, depot, matrix, all_locs)
+    # Calculating distances
     original_distance = route_distance(stops, depot, matrix, all_locs)
     nearest_neighbour_distance = route_distance(nearest_neighbour_route, depot, matrix, all_locs)
+    # Finding percentage improvement
     percentage_improvement = ((original_distance - nearest_neighbour_distance)/original_distance)*100
+
+    # Print outputs
     print("Orignal Route: ")
     print(stops)
     print("Nearest Neighbour Route: ")
@@ -49,6 +60,7 @@ def test_nearest_neighbour(stops, depot, matrix, all_locs):
 
 
 def test_2opt_swap():
+    # Creates a test list - and compares to a new list produced when two opt swap is ran 
     test_list = ["A", "B","C", "D", "E"]
     swap_loc_1 = 0
     swap_loc_2 = 2
@@ -60,6 +72,7 @@ def test_2opt_swap():
     
 
 def test_2opt_optimiser(stops, depot, matrix, all_locs):
+    # Runs 2-opt algorithm and prints out percentage improvement compared to the orignal route. 
     print("two opt log: ")
     two_opt_route = two_opt(stops, depot, matrix, all_locs)
     print(f"\n\n Orignal Route: {stops} with a distance: {two_opt_route.initial_distance_km} km")
@@ -70,6 +83,11 @@ def test_2opt_optimiser(stops, depot, matrix, all_locs):
 
 
 def test_nearest_neighbour_efficiency(stops, depot, matrix, all_locs):
+    
+    # Runs nearest neigbour algorithm twice, once with inital route being the user inputted route, then again 
+    # with the route being the nearest neighbour output/
+    # It then compares the number of iterations carried out in each instance. 
+
     without_nearest_neihbour = two_opt(stops, depot, matrix, all_locs)
     nearest_neighbour_route = nearest_neighbour(stops, depot, matrix, all_locs)
     with_nearest_neighbour = two_opt(nearest_neighbour_route, depot, matrix, all_locs)
@@ -80,9 +98,16 @@ def test_nearest_neighbour_efficiency(stops, depot, matrix, all_locs):
 
 def main():
     print("Testing Geocoder functionality\n")
+
+    # Running Geocoder test
     results = test_geocoder(depot_postcode, stop_postcodes)
+
     print("\n\n============================================================\n\n")
+
+    # Running Distance Matrix test
     print("Testing Distance Matrix")
+
+    # create instances of location class for stops and depot.
     depot_data = results[0]
     depot = Location(
         postcode=depot_data["postcode"],
@@ -103,8 +128,10 @@ def main():
         ))
     
     all_locs = [depot] + stops
-
+    # Calling distance matrix test
     matrix = test_distance_matrix(all_locs)
+
+
     print("\n\n============================================================\n\n")
     print("Testing Nearest Neighbour")
     nearest_neigbour_route = test_nearest_neighbour(stops, depot, matrix, all_locs)
