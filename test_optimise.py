@@ -1,22 +1,33 @@
-from algorithm import Location, optimise_route
+# Importing algorithms 
+
+from algorithm import Location, optimise_route, two_opt_swap, two_opt
 from geocoder import bulk_geocode
 
 
+
+
+
+
+
 def main():
+
+    # Hard coding stops and depot
     depot_postcode = "SW1A 1AA"
     stop_postcodes = [
         "LE16 8HN",
         "B29 7AY",
         "L3 6BU",
+        "NN18 8SP"
     ]
 
+    # Converting postcodes into longitude and latitude coordinates
     all_postcodes = [depot_postcode] + stop_postcodes
     results = bulk_geocode(all_postcodes)
-
     if results[0] is None:
         print(f"Could not geocode depot postcode: {depot_postcode}")
         return
-
+    
+    # Creating instances of location class for stops and depot. 
     depot_data = results[0]
     depot = Location(
         postcode=depot_data["postcode"],
@@ -40,8 +51,11 @@ def main():
             ward=data["ward"],
         ))
 
+    
+    # Running route optimisation
     result = optimise_route(depot, stops)
 
+    # Printing optimised code.
     print("Optimised route:")
     print(depot.postcode)
     for stop in result.route:
